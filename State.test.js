@@ -6,49 +6,12 @@ const State = require("./State.js")
 
 const dir = __dirname
 
-test("markup-shaped notification text stays literal, bounded, and sink-safe", function() {
+test("untrusted names stay bounded and lose control characters", function() {
   const tracker = '<img src="https://example.invalid/tracker">'
-  const raw = JSON.stringify({
-    app: tracker + "Mail",
-    summary: "<b>hola</b>",
-    body: tracker + "x".repeat(5000),
-    execArgv: '["bash","-c","echo pwned"]',
-    image: "https://example.invalid/pixel.png",
-    timestamp: 1_700_000_000_000
-  })
-  const rows = State.notificationsFrom(raw, 1_700_000_060_000)
-  assert.equal(rows.length, 1)
-  assert.equal(rows[0].execArgv, undefined)
-  assert.equal(rows[0].image, undefined)
-  assert.ok(rows[0].app.includes("<img"))
-  assert.ok(rows[0].body.length <= 280)
-  assert.equal(State.sinkSafe(rows[0].summary).includes("<b>"), false)
-  assert.equal(State.sinkSafe(tracker).includes("<img"), false)
-  assert.ok(State.sinkSafe(tracker).includes("img"))
-})
-
-test("malformed and oversized notification lines are dropped", function() {
-  const huge = " ".repeat(9000)
-  const raw = [
-    "not json",
-    "{",
-    huge,
-    JSON.stringify({ summary: "ok", timestamp: 20 }),
-    JSON.stringify({ summary: "older", timestamp: 10 }),
-    JSON.stringify({ app: "", summary: "", body: "" })
-  ].join("\n")
-  const rows = State.notificationsFrom(raw, 100)
-  assert.equal(rows.length, 2)
-  assert.equal(rows[0].summary, "ok")
-  assert.equal(rows[1].summary, "older")
-})
-
-test("notification count is capped", function() {
-  const lines = []
-  for (var i = 0; i < 30; i++) lines.push(JSON.stringify({ summary: "n" + i, timestamp: i }))
-  const rows = State.notificationsFrom(lines.join("\n"), 1000)
-  assert.equal(rows.length, 12)
-  assert.equal(rows[0].summary, "n29")
+  const name = State.plain("\u0000" + tracker + "x".repeat(500), 64)
+  assert.ok(name.length <= 64)
+  assert.equal(name.includes("\u0000"), false)
+  assert.ok(name.startsWith("<img"))
 })
 
 test("status parsers reject junk and clamp brightness", function() {

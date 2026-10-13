@@ -10,8 +10,7 @@ import qs.Ui
 import "State.js" as State
 
 // Control center as a bar popup: the same chrome as the audio and power
-// panels (popup surface, tracked headers, compact tiles, sliders). Notification
-// bodies stay plain text and are never executed.
+// panels (popup surface, tracked headers, compact tiles, sliders).
 Panel {
   id: root
   moduleName: "joseluis.control-center"
@@ -22,7 +21,6 @@ Panel {
   property var hostWidget: null
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string historyDir: home + "/.local/state/omarchy/notifications/history"
   readonly property string dndPath: home + "/.local/state/omarchy/notifications.json"
 
   // Text on the popup surface. The bar's own foreground is for the bar
@@ -58,7 +56,6 @@ Panel {
   readonly property bool micMuted: source && source.audio ? source.audio.muted === true : true
   readonly property bool micAvailable: source && source.audio
 
-  property string notificationFingerprint: ""
   property int cursorIndex: 0
   property bool cursorActive: false
   // The power button sits outside the card grid.
@@ -67,7 +64,7 @@ Panel {
   property int sessionIndex: 0
   property bool suspendAllowed: true
   property bool hibernateAllowed: false
-  readonly property int cursorCount: noteModel.count > 0 ? 9 : 8
+  readonly property int cursorCount: 8
 
   readonly property string wifiDetail: {
     if (!wifiEnabled) return "Apagado"
@@ -111,7 +108,6 @@ Panel {
     if (!nightlightRead.running && !nightlightBusy) nightlightRead.running = true
     if (!idleRead.running && !idleBusy) idleRead.running = true
     if (!networkRead.running) networkRead.running = true
-    if (!historyRead.running) historyRead.running = true
     dndFile.reload()
     wifiEnabled = Networking.wifiEnabled === true
   }
@@ -196,29 +192,6 @@ Panel {
     idleWrite.running = true
   }
 
-  function showNotifications(raw) {
-    var rows = State.notificationsFrom(raw, Date.now())
-    var fingerprint = JSON.stringify(rows)
-    if (fingerprint === notificationFingerprint) return
-    notificationFingerprint = fingerprint
-    Qt.callLater(function() {
-      noteModel.clear()
-      for (var i = 0; i < rows.length; i++) {
-        noteModel.append({
-          app: rows[i].app,
-          summary: rows[i].summary,
-          body: rows[i].body,
-          whenLabel: rows[i].whenLabel
-        })
-      }
-    })
-  }
-
-  function clearHistory() {
-    if (noteModel.count === 0 || clearWrite.running) return
-    clearWrite.running = true
-  }
-
   // Cards sit in two columns (0–5). Up and down step a whole row;
   // left and right change column. Sliders stay on h/l. Up from the
   // first row lands on the session button.
@@ -285,7 +258,6 @@ Panel {
     else if (cursorIndex === 4) toggleIdle()
     else if (cursorIndex === 5) toggleMic()
     else if (cursorIndex === 7) toggleOutputMute()
-    else if (cursorIndex === 8) clearHistory()
   }
 
   function rebuildSessionRows() {
@@ -485,15 +457,6 @@ Panel {
   }
 
   Process {
-    id: historyRead
-    command: ["bash", "-c", "awk 1 \"$1\"/*.json 2>/dev/null || true", "--", root.historyDir]
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: root.showNotifications(text)
-    }
-  }
-
-  Process {
     id: dndWrite
     onExited: {
       root.dndBusy = false
@@ -511,15 +474,6 @@ Panel {
     id: hibernateProbe
     command: ["omarchy-hibernation-available"]
     onExited: function(exitCode) { root.hibernateAllowed = exitCode === 0 }
-  }
-
-  Process {
-    id: clearWrite
-    command: ["omarchy-shell", "notifications", "clear"]
-    onExited: {
-      root.notificationFingerprint = ""
-      if (!historyRead.running) historyRead.running = true
-    }
   }
 
   component PlainText: Text {
@@ -650,8 +604,6 @@ Panel {
         if (root.sessionOpen) root.sessionOpen = false
         else root.switchPanel(direction)
       }
-      // x is aliased to delete. Only the clear row may drop history.
-      onDeleteRequested: if (!root.sessionOpen && root.cursorActive && root.cursorIndex === 8) root.clearHistory()
 
       Flickable {
         id: scroller
@@ -985,133 +937,6 @@ Panel {
             }
           }
 
-          PanelSeparator { foreground: root.foreground }
-
-          Column {
-            width: parent.width
-            spacing: Style.space(8)
-
-            PanelSectionHeader {
-              text: "NOTIFICACIONES"
-              foreground: root.foreground
-              fontFamily: root.fontFamily
-            }
-
-            PlainText {
-              visible: noteModel.count === 0
-              width: parent.width
-              text: "No hay notificaciones recientes"
-              font.pixelSize: Style.font.caption
-              color: root.dim
-              wrapMode: Text.WordWrap
-              elide: Text.ElideNone
-            }
-
-            Column {
-              id: notes
-              width: parent.width
-              spacing: Style.space(8)
-              visible: noteModel.count > 0
-
-              Repeater {
-                model: noteModel
-
-                Column {
-                  id: note
-                  required property int index
-                  required property string app
-                  required property string summary
-                  required property string body
-                  required property string whenLabel
-
-                  width: notes.width
-                  spacing: Style.space(6)
-
-                  PanelSeparator {
-                    visible: note.index > 0
-                    width: parent.width
-                    foreground: root.foreground
-                    strength: 0.08
-                  }
-
-                  Item {
-                    width: parent.width
-                    height: Math.max(appText.implicitHeight, whenText.implicitHeight)
-
-                    PlainText {
-                      id: appText
-                      width: Math.max(0, parent.width - whenText.implicitWidth - Style.space(8))
-                      text: note.app || "Aviso"
-                      font.pixelSize: Style.font.caption
-                      font.bold: true
-                      color: root.dim
-                    }
-
-                    PlainText {
-                      id: whenText
-                      anchors.right: parent.right
-                      text: note.whenLabel
-                      font.pixelSize: Style.font.caption
-                      color: root.dim
-                      opacity: 0.75
-                    }
-                  }
-
-                  PlainText {
-                    visible: note.summary !== ""
-                    width: parent.width
-                    text: note.summary
-                    wrapMode: Text.WordWrap
-                    elide: Text.ElideNone
-                    maximumLineCount: 2
-                  }
-
-                  PlainText {
-                    visible: note.body !== ""
-                    width: parent.width
-                    text: note.body
-                    font.pixelSize: Style.font.caption
-                    color: root.dim
-                    wrapMode: Text.WordWrap
-                    elide: Text.ElideNone
-                    maximumLineCount: 2
-                  }
-                }
-              }
-            }
-
-            CursorSurface {
-              id: clearRow
-              visible: noteModel.count > 0
-              width: parent.width
-              implicitHeight: Style.space(30)
-              height: visible ? implicitHeight : 0
-              hasCursor: root.cursorActive && !root.headerCursor && !root.sessionOpen && root.cursorIndex === 8
-              onHasCursorChanged: if (hasCursor) root.ensureCursorVisible(clearRow)
-              foreground: root.foreground
-
-              PlainText {
-                anchors.centerIn: parent
-                text: "BORRAR"
-                font.pixelSize: Style.font.caption
-                font.bold: true
-                font.letterSpacing: 1.2
-                color: clearRow.hasCursor ? root.foreground : root.dim
-              }
-
-              MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onContainsMouseChanged: if (containsMouse) {
-                  root.cursorActive = true
-                  root.headerCursor = false
-                  root.cursorIndex = 8
-                }
-                onClicked: root.clearHistory()
-              }
-            }
-          }
         }
       }
 
@@ -1223,5 +1048,4 @@ Panel {
   }
 
   ListModel { id: sessionModel }
-  ListModel { id: noteModel }
 }

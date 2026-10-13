@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "joseluis.control-center",
   "name": "Centro de control",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "author": "José Luis",
   "license": "MIT",
-  "description": "Centro de control con ajustes rápidos (Wi-Fi, Bluetooth, luz nocturna, no molestar, brillo y volumen), notificaciones recientes y acciones de sesión.",
+  "description": "Centro de control con ajustes rápidos (Wi-Fi, Bluetooth, luz nocturna, no molestar, brillo y volumen) y acciones de sesión.",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "BarWidget.qml"

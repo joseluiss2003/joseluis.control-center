@@ -1,9 +1,9 @@
 # Centro de control
 
-Quick settings, recent notifications, and session actions in a panel anchored
-to the Omarchy bar. The interface is in Spanish.
+Quick settings and session actions in a panel anchored to the Omarchy bar.
+The interface is in Spanish.
 
-![Centro de control: quick settings, brightness, volume, and notifications](preview.png)
+![Centro de control: quick settings, brightness, and volume](preview.png)
 
 ## What it does
 
@@ -11,8 +11,6 @@ to the Omarchy bar. The interface is in Spanish.
 - **Conexión:** Wi-Fi and Bluetooth tiles.
 - **Sistema:** night light, do not disturb, stay awake, and the microphone.
 - **Sliders:** display brightness and output volume.
-- **Notifications:** recent shell history, rendered as plain text. Clearing it
-  is a separate action. Notification buttons are never run.
 - **Session:** the power button at the top right opens lock, suspend,
   hibernate (only when the machine can hibernate), log out, reboot, and shut
   down. Suspend is hidden when Omarchy has suspend turned off.
@@ -25,7 +23,6 @@ to the Omarchy bar. The interface is in Spanish.
 | `h` / `l` | change column |
 | `Enter` / `Space` | activate the tile, slider, or session row |
 | `Escape` | close the session menu, or the panel |
-| `x` or `Delete` | clear notification history when that row is selected |
 
 ## Install
 
@@ -49,9 +46,6 @@ omarchy plugin enable joseluis.control-center right
 omarchy plugin remove joseluis.control-center --yes
 ```
 
-Removing the plugin leaves the shell's notification history in place. That
-history is not owned by this plugin.
-
 ## Optional keybinding
 
 This plugin does not edit Hyprland or `shell.json`. To open the panel from
@@ -74,8 +68,8 @@ omarchy-shell shell hide joseluis.control-center
 ## How it works
 
 `BarWidget.qml` is the bar button. `ControlCenter.qml` is the panel.
-`State.js` caps notification text and returns one fixed argument list per
-session action. Lock, log out, reboot, and shut down call the Omarchy system
+`State.js` returns one fixed argument list per session action. Lock, log out,
+reboot, and shut down call the Omarchy system
 helpers. Suspend and hibernate call `systemctl` with those two verbs only.
 
 ## License
